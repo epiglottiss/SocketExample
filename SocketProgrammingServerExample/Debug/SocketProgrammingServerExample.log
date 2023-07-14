@@ -1,0 +1,3 @@
+﻿  EchoServerExample.c
+C:\Users\user\source\repos\SocketProgramingExample\SocketProgramingExample\EchoServerExample.c(9,7): warning C4013: 'puts' undefined; assuming extern returning int
+  SocketProgrammingServerExample.vcxproj -> C:\Users\user\source\repos\SocketProgramingExample\Debug\SocketProgrammingServerExample.exe
