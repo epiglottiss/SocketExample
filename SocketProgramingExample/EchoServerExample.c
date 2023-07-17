@@ -3,6 +3,24 @@
 #include<stdio.h>
 #pragma comment(lib, "ws2_32")
 
+DWORD WINAPI clientThread(LPVOID clientSocketParam) {
+	puts("New Connection.");
+
+	SOCKET clientConnectionSocket = (SOCKET)clientSocketParam;
+	int receivedBytes = 0;
+	char buffer[128] = { 0 };
+	while (receivedBytes = recv(clientConnectionSocket, buffer, sizeof(buffer), 0)) {
+		send(clientConnectionSocket, buffer, sizeof(buffer), 0);
+		puts(buffer);
+		memset(buffer, 0, sizeof(buffer));
+	}
+
+	shutdown(clientConnectionSocket, SD_BOTH);
+	closesocket(clientConnectionSocket);
+	puts("Disconnected.");
+	return 0;
+}
+
 int main() {
 
 	WSADATA wsaData = { 0 };
@@ -44,22 +62,13 @@ int main() {
 	SOCKADDR_IN clientAddress = { 0 };
 	int clientAddressLength = sizeof(clientAddress);
 	SOCKET clientConnectionSocket = 0;
-	char buffer[128] = { 0 };
-	int receivedBytes = 0;
+	DWORD threadID = 0;
 
 	while ((clientConnectionSocket = accept(sock, (SOCKADDR*)&clientAddress, &clientAddressLength)) != INVALID_SOCKET)
 	{
-		puts("New Connection.");
-		
-		while (receivedBytes = recv(clientConnectionSocket, buffer, sizeof(buffer), 0)) {
-			send(clientConnectionSocket, buffer, sizeof(buffer), 0);
-			puts(buffer);
-			memset(buffer, 0, sizeof(buffer));
-		}
+		threadID = CreateThread(NULL, 0, clientThread, (LPVOID)clientConnectionSocket, 0, &threadID);
 
-		shutdown(clientConnectionSocket, SD_BOTH);
-		closesocket(clientConnectionSocket);
-		puts("Disconnected.");
+		CloseHandle(threadID);
 	}
 	
 	puts("close");
