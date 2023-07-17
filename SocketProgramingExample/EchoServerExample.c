@@ -1,6 +1,7 @@
-#include <WinSock2.h>
-
-#pragma comment(lib, "Ws2_32.lib")
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winSock2.h>
+#include<stdio.h>
+#pragma comment(lib, "ws2_32")
 
 int main() {
 
@@ -16,28 +17,36 @@ int main() {
 		puts("Invalid Socket. Failed to create server socket.");
 		return 0;
 	}
-	puts("1\n");
+	puts("Socket Created.\n");
+
+	int opt = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, 1) == SOCKET_ERROR) {
+		puts("Failed to set socket option.");
+		return 0;
+	}
+
 	SOCKADDR_IN addressInfo;
 	addressInfo.sin_family = AF_INET;
 	addressInfo.sin_port = htons(15555);
-	addressInfo.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
+	//addressInfo.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
+	addressInfo.sin_addr.S_un.S_addr = inet_addr("220.123.222.147");
 	if (bind(sock, (SOCKADDR*)&addressInfo, sizeof(addressInfo)) == SOCKET_ERROR ) {
 		puts("Failed to bind.");
+		printf("%ld\n", WSAGetLastError());
 		return 0;
 	}
-	puts("2\n");
+	puts("bind\n");
 	if (listen(sock, SOMAXCONN) == SOCKET_ERROR) {
 		puts("Cannot change state to listen.");
 		return 0;
 	}
-	puts("3\n");
+	puts("listen\n");
 	SOCKADDR_IN clientAddress = { 0 };
 	int clientAddressLength = sizeof(clientAddress);
 	SOCKET clientConnectionSocket = 0;
 	char buffer[128] = { 0 };
 	int receivedBytes = 0;
 
-	puts("4\n",WSAGetLastError());
 	while ((clientConnectionSocket = accept(sock, (SOCKADDR*)&clientAddress, &clientAddressLength)) != INVALID_SOCKET)
 	{
 		puts("New Connection.");
