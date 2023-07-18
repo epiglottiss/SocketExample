@@ -4,6 +4,20 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+DWORD WINAPI recvThread(LPVOID socketParam) {
+	SOCKET clientSocket = socketParam;
+
+	char buffer[128] = { 0 };
+	while (recv(clientSocket, buffer, sizeof(buffer), 0) > 0) {
+		printf("echo : %s\n", buffer);
+		memset(buffer, 0, sizeof(buffer));
+	}
+
+	puts("leave");
+	return 0;
+}
+
+
 int main(int argc, char* argv[])
 {
 	if (argc < 2) {
@@ -32,8 +46,17 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+	DWORD threadID = 0;
+	HANDLE threadHandle = CreateThread(NULL,
+		0,
+		(LPTHREAD_START_ROUTINE)recvThread,
+		(LPVOID)sock,
+		0,
+		&threadID);
+
 	char buffer[128] = { 0 };
 	while (1) {
+		memset(buffer, 0, sizeof(buffer));
 		gets_s(buffer, sizeof(buffer));
 
 		if (strcmp(buffer, "q") == 0) {
@@ -41,11 +64,9 @@ int main(int argc, char* argv[])
 		}
 
 		send(sock, buffer, sizeof(buffer),0);
-		memset(buffer, 0, sizeof(buffer));
-
-		recv(sock, buffer, sizeof(buffer), 0);
-		printf("Receive from server : %s", buffer);
 	}
+
+	CloseHandle(threadHandle);
 
 	shutdown(sock, SD_BOTH);
 	closesocket(sock);
