@@ -7,67 +7,28 @@
 #pragma comment(lib, "ws2_32")
 
 
-CRITICAL_SECTION criticalSection;
 SOCKET sock;
-std::list<SOCKET> clientList;
+WSAEVENT socketEventList[WSA_MAXIMUM_WAIT_EVENTS];
+SOCKET clientSocketList[WSA_MAXIMUM_WAIT_EVENTS];
+int listIndex;
 
-void addUser(SOCKET clientSocket) {
-	EnterCriticalSection(&criticalSection);
-	clientList.push_back(clientSocket);
-	LeaveCriticalSection(&criticalSection);
-}
-
-void sendMessageAllClient(char* message) {
-
-	std::list<SOCKET>::iterator it;
-	
-	EnterCriticalSection(&criticalSection);
-	for (it = clientList.begin(); it != clientList.end(); it++) {
-		send(*it, message, sizeof(message), 0);
+void closeAllSocket() {
+	for (int i = 0; i < listIndex; i++)
+	{
+		shutdown(clientSocketList[i], SD_BOTH);
+		closesocket(clientSocketList[i]);
+		WSACloseEvent(socketEventList[i]);
 	}
-	LeaveCriticalSection(&criticalSection);
 }
 
 void eventHandler(DWORD eventType) {
 
 	if (eventType == CTRL_C_EVENT) {
-		std::list<SOCKET>::iterator it;
-
-		EnterCriticalSection(&criticalSection);
-		for (it = clientList.begin(); it != clientList.end(); it++) {
-			closesocket(*it);
-		}
-		LeaveCriticalSection(&criticalSection);
-		puts("All client disconnected");
-
-		Sleep(500);
-		DeleteCriticalSection(&criticalSection);
-		closesocket(sock);
+		closeAllSocket();
+		puts("All client socket were closed.");
 		WSACleanup();
 		exit(0);
 	}
-}
-
-DWORD WINAPI clientThread(LPVOID clientSocketParam) {
-	puts("New Connection.");
-
-	SOCKET clientConnectionSocket = (SOCKET)clientSocketParam;
-	int receivedBytes = 0;
-	char buffer[128] = { 0 };
-	while (receivedBytes = recv(clientConnectionSocket, buffer, sizeof(buffer), 0) >0) {
-		sendMessageAllClient(buffer);
-		puts(buffer);
-		memset(buffer, 0, sizeof(buffer));
-	}
-
-	EnterCriticalSection(&criticalSection);
-	clientList.remove(clientConnectionSocket);
-	LeaveCriticalSection(&criticalSection);
-
-	shutdown(clientConnectionSocket, SD_BOTH);
-	closesocket(clientConnectionSocket);
-	puts("Disconnected.");
-	return 0;
 }
 
 int main() {
@@ -79,7 +40,6 @@ int main() {
 	}
 	puts("WSAStartup\n");
 
-	InitializeCriticalSection(&criticalSection);
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)eventHandler, true);
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -99,7 +59,7 @@ int main() {
 	addressInfo.sin_family = AF_INET;
 	addressInfo.sin_port = htons(15555);
 	//addressInfo.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
-	addressInfo.sin_addr.S_un.S_addr = inet_addr("220.123.222.147");
+	addressInfo.sin_addr.S_un.S_addr = inet_addr("14.38.154.93");
 	if (bind(sock, (SOCKADDR*)&addressInfo, sizeof(addressInfo)) == SOCKET_ERROR ) {
 		puts("Failed to bind.");
 		printf("%ld\n", WSAGetLastError());
@@ -112,23 +72,85 @@ int main() {
 	}
 	puts("listen\n");
 
-	SOCKADDR_IN clientAddress = { 0 };
-	int clientAddressLength = sizeof(clientAddress);
-	SOCKET clientConnectionSocket = 0;
-	HANDLE threadHandle;
-	DWORD threadID = 0;
+	listIndex = 0;
+	clientSocketList[listIndex] = sock;  //서버 소켓
+	socketEventList[listIndex] = WSACreateEvent();	//서버 소켓 이벤트 등록
 
-	while ((clientConnectionSocket = accept(sock, (SOCKADDR*)&clientAddress, &clientAddressLength)) != INVALID_SOCKET)
-	{
-		addUser(clientConnectionSocket);
-
-		threadHandle = CreateThread(NULL, 0, clientThread, (LPVOID)clientConnectionSocket, 0, &threadID);
-
-		CloseHandle(threadHandle);
+	if (WSAEventSelect(sock, socketEventList[listIndex], FD_ACCEPT) == SOCKET_ERROR) {
+		puts("WSAEvnetSelect error.");
+		return 0;
 	}
-	
-	puts("close");
-	closesocket(sock);
+	puts("WSAEventSelect ok.");
+
+	DWORD signaledEventIndex;
+	WSANETWORKEVENTS netEvent;
+	while (true) {
+		signaledEventIndex = WSAWaitForMultipleEvents(listIndex + 1, socketEventList, false, 100, false);
+
+		if (signaledEventIndex == WSA_WAIT_FAILED || signaledEventIndex == WSA_WAIT_TIMEOUT) {
+			//puts("no event.");
+			continue;
+		}
+
+		if (WSAEnumNetworkEvents(clientSocketList[signaledEventIndex], socketEventList[signaledEventIndex], &netEvent) == SOCKET_ERROR) {
+			puts("Enum network evnet error.");
+			printf("error code : %d\n", WSAGetLastError());
+			continue;
+		}
+
+		if (netEvent.lNetworkEvents & FD_ACCEPT) {
+			if (netEvent.iErrorCode[FD_ACCEPT_BIT] != 0) {
+				puts("FD_ACCEPT_BIT is not 0.");
+				continue;
+			}
+
+			if (listIndex >= WSA_MAXIMUM_WAIT_EVENTS) {
+				puts("No more connection.");
+				continue;
+			}
+
+			SOCKADDR_IN clientAddress = { 0 };
+			int clientAddressLength = sizeof(clientAddress);
+			SOCKET clientConnectionSocket = accept(sock, (SOCKADDR*)&clientAddress, &clientAddressLength);
+
+			if (clientConnectionSocket != INVALID_SOCKET) {
+				++listIndex;
+				clientSocketList[listIndex] = clientConnectionSocket;
+				socketEventList[listIndex] = WSACreateEvent();
+				puts("New Connection.");
+			}
+
+			WSAEventSelect(clientConnectionSocket, socketEventList[listIndex], FD_READ | FD_CLOSE);
+		}
+
+		else if (netEvent.lNetworkEvents & FD_CLOSE) {
+			WSACloseEvent(socketEventList[signaledEventIndex]);
+			shutdown(clientSocketList[signaledEventIndex], SD_BOTH);
+			closesocket(clientSocketList[signaledEventIndex]);
+
+			for (DWORD i = signaledEventIndex; i < listIndex; i++) {
+				socketEventList[i] = socketEventList[i + 1];
+				clientSocketList[i] = clientSocketList[i + 1];
+			}
+
+			listIndex--;
+			printf("Disconnected. %d left.", listIndex);
+		}
+
+		else if (netEvent.lNetworkEvents & FD_READ) {
+			char buffer[1024] = { 0 };
+			int receivedBytes = recv(clientSocketList[signaledEventIndex],
+				(char*)buffer, sizeof(buffer), 0);
+			
+			for (int i = 1; i < listIndex+1; i++)
+			{
+				send(clientSocketList[i], (char*)buffer, receivedBytes, 0);
+			}
+		}
+		else {
+			puts("event signaled but no match.");
+		}
+	}
 
 	WSACleanup();
 	return 0;
