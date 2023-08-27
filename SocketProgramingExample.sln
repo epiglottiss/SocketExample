@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SocketProgrammingExampleCli
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SocketProgrammingServerExample", "SocketProgrammingServerExample\SocketProgrammingServerExample.vcxproj", "{8B761810-D9C3-4C71-AEC0-B94F2D052DDF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IOCPChatServerExample", "IOCPChatServerExample\IOCPChatServerExample.vcxproj", "{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{8B761810-D9C3-4C71-AEC0-B94F2D052DDF}.Release|x64.Build.0 = Release|x64
 		{8B761810-D9C3-4C71-AEC0-B94F2D052DDF}.Release|x86.ActiveCfg = Release|Win32
 		{8B761810-D9C3-4C71-AEC0-B94F2D052DDF}.Release|x86.Build.0 = Release|Win32
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Debug|x64.ActiveCfg = Debug|x64
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Debug|x64.Build.0 = Debug|x64
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Debug|x86.ActiveCfg = Debug|Win32
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Debug|x86.Build.0 = Debug|Win32
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Release|x64.ActiveCfg = Release|x64
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Release|x64.Build.0 = Release|x64
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Release|x86.ActiveCfg = Release|Win32
+		{1A5D25C0-84A0-4F72-AABF-73B3C156C6CB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
